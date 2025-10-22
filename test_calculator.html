@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>計算器テスト</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 {
+            color: #4ec9b0;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .pass {
+            background: #1e3a1e;
+            border-left: 4px solid #4caf50;
+        }
+        .fail {
+            background: #3a1e1e;
+            border-left: 4px solid #f44336;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #2d2d30;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .pass-count {
+            color: #4caf50;
+        }
+        .fail-count {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>計算器 自動テスト</h1>
+    <div id="test-results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script>
+        // テスト用の計算器ロジックをインポート
+        let currentValue = '0';
+        let previousValue = null;
+        let operation = null;
+
+        function resetCalculator() {
+            currentValue = '0';
+            previousValue = null;
+            operation = null;
+        }
+
+        function appendNumber(num) {
+            if (currentValue === '0' || currentValue === 'Error') {
+                currentValue = num;
+            } else {
+                currentValue += num;
+            }
+        }
+
+        function setOperation(op) {
+            if (previousValue !== null && operation !== null) {
+                calculate();
+            }
+            previousValue = currentValue;
+            operation = op;
+            currentValue = '0';
+        }
+
+        function calculate() {
+            if (previousValue === null || operation === null) {
+                return null;
+            }
+
+            const prev = parseFloat(previousValue);
+            const current = parseFloat(currentValue);
+            let result;
+
+            switch (operation) {
+                case '+':
+                    result = prev + current;
+                    break;
+                case '-':
+                    result = prev - current;
+                    break;
+                case '×':
+                    result = prev * current;
+                    break;
+                case '÷':
+                    if (current === 0) {
+                        currentValue = 'Error';
+                        previousValue = null;
+                        operation = null;
+                        return 'Error';
+                    }
+                    result = prev / current;
+                    break;
+                default:
+                    return null;
+            }
+
+            result = Math.round(result * 100000000) / 100000000;
+            currentValue = result.toString();
+            previousValue = null;
+            operation = null;
+            return result;
+        }
+
+        // テストフレームワーク
+        const results = [];
+
+        function test(description, fn) {
+            resetCalculator();
+            try {
+                fn();
+                results.push({ description, passed: true });
+                displayResult(description, true);
+            } catch (error) {
+                results.push({ description, passed: false, error: error.message });
+                displayResult(description, false, error.message);
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        function assertEqual(actual, expected, message) {
+            if (actual !== expected) {
+                throw new Error(message || `Expected ${expected}, but got ${actual}`);
+            }
+        }
+
+        function displayResult(description, passed, error) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            resultDiv.textContent = `${passed ? '✓' : '✗'} ${description}${error ? ': ' + error : ''}`;
+            document.getElementById('test-results').appendChild(resultDiv);
+        }
+
+        function displaySummary() {
+            const passed = results.filter(r => r.passed).length;
+            const failed = results.filter(r => !r.passed).length;
+            const total = results.length;
+
+            const summaryDiv = document.getElementById('summary');
+            summaryDiv.innerHTML = `
+                テスト結果: <span class="pass-count">${passed} 成功</span> /
+                <span class="fail-count">${failed} 失敗</span> /
+                ${total} 合計
+            `;
+        }
+
+        // テストケース
+        test('加算: 5 + 3 = 8', () => {
+            appendNumber('5');
+            setOperation('+');
+            appendNumber('3');
+            const result = calculate();
+            assertEqual(result, 8, '5 + 3 should equal 8');
+        });
+
+        test('減算: 10 - 4 = 6', () => {
+            appendNumber('10');
+            setOperation('-');
+            appendNumber('4');
+            const result = calculate();
+            assertEqual(result, 6, '10 - 4 should equal 6');
+        });
+
+        test('乗算: 6 × 7 = 42', () => {
+            appendNumber('6');
+            setOperation('×');
+            appendNumber('7');
+            const result = calculate();
+            assertEqual(result, 42, '6 × 7 should equal 42');
+        });
+
+        test('除算: 20 ÷ 4 = 5', () => {
+            appendNumber('20');
+            setOperation('÷');
+            appendNumber('4');
+            const result = calculate();
+            assertEqual(result, 5, '20 ÷ 4 should equal 5');
+        });
+
+        test('除算: 15 ÷ 2 = 7.5', () => {
+            appendNumber('15');
+            setOperation('÷');
+            appendNumber('2');
+            const result = calculate();
+            assertEqual(result, 7.5, '15 ÷ 2 should equal 7.5');
+        });
+
+        test('0による除算エラー', () => {
+            appendNumber('10');
+            setOperation('÷');
+            appendNumber('0');
+            const result = calculate();
+            assertEqual(result, 'Error', 'Division by zero should return Error');
+        });
+
+        test('小数点の加算: 0.1 + 0.2 = 0.3', () => {
+            appendNumber('0');
+            appendNumber('.');
+            appendNumber('1');
+            setOperation('+');
+            appendNumber('0');
+            appendNumber('.');
+            appendNumber('2');
+            const result = calculate();
+            // 浮動小数点の精度問題を考慮
+            assert(Math.abs(result - 0.3) < 0.0001, '0.1 + 0.2 should approximately equal 0.3');
+        });
+
+        test('負の数: 5 - 10 = -5', () => {
+            appendNumber('5');
+            setOperation('-');
+            appendNumber('10');
+            const result = calculate();
+            assertEqual(result, -5, '5 - 10 should equal -5');
+        });
+
+        test('大きな数の乗算: 999 × 999 = 998001', () => {
+            appendNumber('999');
+            setOperation('×');
+            appendNumber('999');
+            const result = calculate();
+            assertEqual(result, 998001, '999 × 999 should equal 998001');
+        });
+
+        test('連続計算: 10 + 5 + 3 = 18', () => {
+            appendNumber('10');
+            setOperation('+');
+            appendNumber('5');
+            setOperation('+'); // これが calculate() を呼び出す
+            appendNumber('3');
+            const result = calculate();
+            assertEqual(result, 18, '10 + 5 + 3 should equal 18');
+        });
+
+        test('複数桁の数値入力: 123 + 456 = 579', () => {
+            appendNumber('1');
+            appendNumber('2');
+            appendNumber('3');
+            setOperation('+');
+            appendNumber('4');
+            appendNumber('5');
+            appendNumber('6');
+            const result = calculate();
+            assertEqual(result, 579, '123 + 456 should equal 579');
+        });
+
+        test('ゼロとの加算: 0 + 42 = 42', () => {
+            appendNumber('0');
+            setOperation('+');
+            appendNumber('42');
+            const result = calculate();
+            assertEqual(result, 42, '0 + 42 should equal 42');
+        });
+
+        test('ゼロとの乗算: 100 × 0 = 0', () => {
+            appendNumber('100');
+            setOperation('×');
+            appendNumber('0');
+            const result = calculate();
+            assertEqual(result, 0, '100 × 0 should equal 0');
+        });
+
+        // サマリー表示
+        displaySummary();
+    </script>
+</body>
+</html>
